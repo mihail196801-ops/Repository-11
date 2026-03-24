@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>NEXUS | Регистрация</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;14..32,400;14..32,500;14..32,600;14..32,700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Inter', sans-serif;
+        }
+
+        body {
+            min-height: 100vh;
+            background: #0a0c12;
+            overflow-x: hidden;
+            position: relative;
+        }
+
+        /* Анимированный фон */
+        .animated-bg {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 0;
+            overflow: hidden;
+        }
+
+        .bg-orb {
+            position: absolute;
+            border-radius: 50%;
+            filter: blur(80px);
+            opacity: 0.5;
+            animation: floatOrb 18s infinite alternate ease-in-out;
+        }
+
+        .orb1 {
+            width: 55vw;
+            height: 55vw;
+            background: radial-gradient(circle, rgba(88, 28, 135, 0.8), rgba(59, 130, 246, 0.4));
+            top: -15%;
+            left: -20%;
+            animation-duration: 22s;
+        }
+
+        .orb2 {
+            width: 65vw;
+            height: 65vw;
+            background: radial-gradient(circle, rgba(236, 72, 153, 0.6), rgba(16, 185, 129, 0.3));
+            bottom: -25%;
+            right: -15%;
+            animation-duration: 25s;
+            animation-delay: -5s;
+        }
+
+        .orb3 {
+            width: 45vw;
+            height: 45vw;
+            background: radial-gradient(circle, rgba(245, 158, 11, 0.6), rgba(139, 92, 246, 0.4));
+            top: 40%;
+            left: 60%;
+            animation-duration: 20s;
+            animation-delay: -2s;
+        }
+
+        .orb4 {
+            width: 40vw;
+            height: 40vw;
+            background: radial-gradient(circle, rgba(6, 182, 212, 0.5), rgba(99, 102, 241, 0.5));
+            bottom: 10%;
+            left: 20%;
+            animation-duration: 28s;
+            animation-delay: -8s;
+        }
+
+        @keyframes floatOrb {
+            0% { transform: translate(0, 0) scale(1); }
+            100% { transform: translate(5%, 8%) scale(1.08); }
+        }
+
+        .grid-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image: 
+                linear-gradient(rgba(15, 25, 45, 0.4) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(15, 25, 45, 0.4) 1px, transparent 1px);
+            background-size: 50px 50px;
+            z-index: 1;
+            pointer-events: none;
+        }
+
+        .app-container {
+            position: relative;
+            z-index: 10;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 1.5rem;
+            backdrop-filter: blur(2px);
+        }
+
+        .glass-card {
+            background: rgba(20, 24, 35, 0.65);
+            backdrop-filter: blur(12px);
+            border-radius: 2.5rem;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 0 25px 45px rgba(0, 0, 0, 0.3), 0 0 0 0.5px rgba(255, 255, 255, 0.1) inset;
+            width: 100%;
+            max-width: 500px;
+        }
+
+        .register-form {
+            padding: 2.5rem 2rem;
+        }
+
+        .brand {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+
+        .brand i {
+            font-size: 3.2rem;
+            background: linear-gradient(135deg, #a78bfa, #3b82f6);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            margin-bottom: 0.5rem;
+        }
+
+        .brand h1 {
+            font-size: 2rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, #fff, #c084fc);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            letter-spacing: -0.5px;
+        }
+
+        .brand p {
+            color: rgba(255, 255, 255, 0.6);
+            font-size: 0.9rem;
+            margin-top: 0.3rem;
+        }
+
+        .input-group {
+            margin-bottom: 1.8rem;
+            position: relative;
+        }
+
+        .input-group i {
+            position: absolute;
+            left: 1.2rem;
+            top: 50%;
+            transform: translateY(-50%);
+            color: rgba(255, 255, 255, 0.5);
+            font-size: 1.2rem;
+        }
+
+        .input-group input {
+            width: 100%;
+            background: rgba(10, 14, 23, 0.7);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 2rem;
+            padding: 1rem 1rem 1rem 3rem;
+            font-size: 1rem;
+            color: white;
+            font-weight: 500;
+            transition: all 0.25s ease;
+            outline: none;
+        }
+
+        .input-group input:focus {
+            border-color: #a78bfa;
+            background: rgba(20, 25, 45, 0.9);
+            box-shadow: 0 0 12px rgba(167, 139, 250, 0.3);
+        }
+
+        .input-group input::placeholder {
+            color: rgba(255, 255, 255, 0.4);
+        }
+
+        .register-btn {
+            width: 100%;
+            background: linear-gradient(95deg, #6366f1, #a855f7);
+            border: none;
+            padding: 1rem;
+            border-radius: 2rem;
+            font-weight: 700;
+            font-size: 1rem;
+            color: white;
+            cursor: pointer;
+            transition: all 0.3s;
+            box-shadow: 0 8px 20px rgba(99, 102, 241, 0.3);
+        }
+
+        .register-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 12px 28px rgba(139, 92, 246, 0.4);
+            background: linear-gradient(95deg, #818cf8, #c084fc);
+        }
+
+        .toast {
+            position: fixed;
+            bottom: 25px;
+            left: 50%;
+            transform: translateX(-50%) scale(0.9);
+            background: rgba(0,0,0,0.8);
+            backdrop-filter: blur(20px);
+            padding: 0.8rem 1.8rem;
+            border-radius: 3rem;
+            color: white;
+            font-weight: 500;
+            z-index: 200;
+            opacity: 0;
+            transition: 0.2s;
+            pointer-events: none;
+            border: 1px solid rgba(255,255,255,0.2);
+            font-size: 0.9rem;
+        }
+    </style>
+</head>
+<body>
+
+<div class="animated-bg">
+    <div class="bg-orb orb1"></div>
+    <div class="bg-orb orb2"></div>
+    <div class="bg-orb orb3"></div>
+    <div class="bg-orb orb4"></div>
+</div>
+<div class="grid-overlay"></div>
+
+<div class="app-container">
+    <div class="glass-card">
+        <div class="register-form">
+            <div class="brand">
+                <i class="fas fa-comet"></i>
+                <h1>NEXUS</h1>
+                <p>чат‑рулетка нового поколения</p>
+            </div>
+            <div class="input-group">
+                <i class="fas fa-user-astronaut"></i>
+                <input type="text" id="firstName" placeholder="Имя" autocomplete="off">
+            </div>
+            <div class="input-group">
+                <i class="fas fa-signature"></i>
+                <input type="text" id="lastName" placeholder="Фамилия" autocomplete="off">
+            </div>
+            <button class="register-btn" id="registerBtn">
+                <i class="fas fa-arrow-right-to-bracket" style="margin-right: 8px;"></i> Войти
+            </button>
+            <p style="text-align: center; margin-top: 1.5rem; font-size: 0.7rem; color: rgba(255,255,255,0.4);">
+                <i class="fas fa-shield-alt"></i> После входа вы сможете общаться с другими
+            </p>
+        </div>
+    </div>
+</div>
+
+<div id="toast" class="toast"></div>
+
+<script>
+    const toast = document.getElementById('toast');
+    function showMessage(text, duration = 2500) {
+        toast.textContent = text;
+        toast.style.opacity = '1';
+        toast.style.transform = 'translateX(-50%) scale(1)';
+        setTimeout(() => {
+            toast.style.opacity = '0';
+            toast.style.transform = 'translateX(-50%) scale(0.9)';
+        }, duration);
+    }
+
+    // Получить список пользователей
+    function getUsers() {
+        const users = localStorage.getItem('nexus_users');
+        return users ? JSON.parse(users) : [];
+    }
+
+    // Сохранить список
+    function saveUsers(users) {
+        localStorage.setItem('nexus_users', JSON.stringify(users));
+        // Триггерим событие storage для обновления в других вкладках
+        window.dispatchEvent(new StorageEvent('storage', { key: 'nexus_users', newValue: JSON.stringify(users) }));
+    }
+
+    // Регистрация
+    function register() {
+        const firstName = document.getElementById('firstName').value.trim();
+        const lastName = document.getElementById('lastName').value.trim();
+
+        if (!firstName || !lastName) {
+            showMessage('❌ Введите имя и фамилию');
+            return;
+        }
+
+        const fullName = `${firstName} ${lastName}`;
+        const users = getUsers();
+
+        // Проверяем уникальность
+        if (users.some(u => u.fullName === fullName)) {
+            showMessage('⚠️ Пользователь с таким именем и фамилией уже существует');
+            return;
+        }
+
+        // Добавляем нового пользователя
+        const newUser = {
+            firstName,
+            lastName,
+            fullName,
+            registeredAt: Date.now()
+        };
+        users.push(newUser);
+        saveUsers(users);
+
+        // Сохраняем текущего пользователя в localStorage
+        localStorage.setItem('nexus_current_user', JSON.stringify(newUser));
+
+        showMessage(`✅ Добро пожаловать, ${fullName}! Перенаправление...`);
+        setTimeout(() => {
+            window.location.href = 'main.html';
+        }, 1000);
+    }
+
+    document.getElementById('registerBtn').addEventListener('click', register);
+    document.getElementById('firstName').addEventListener('keypress', e => e.key === 'Enter' && register());
+    document.getElementById('lastName').addEventListener('keypress', e => e.key === 'Enter' && register());
+
+    // Если пользователь уже залогинен и пытается зайти на index, можно перенаправить сразу
+    const alreadyLogged = localStorage.getItem('nexus_current_user');
+    if (alreadyLogged) {
+        window.location.href = 'main.html';
+    }
+</script>
+</body>
+</html>
