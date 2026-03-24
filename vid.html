@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>NEXUS Видеозвонок</title>
+    <style>
+        * { margin:0; padding:0; box-sizing:border-box; font-family:system-ui, -apple-system, 'Inter', sans-serif; }
+        body { background:#0a0c12; color:white; height:100vh; display:flex; flex-direction:column; overflow:hidden; }
+        .header { padding:1rem; background:rgba(0,0,0,0.5); backdrop-filter:blur(10px); display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid rgba(255,255,255,0.1); }
+        .room-info { font-size:0.9rem; color:#a78bfa; }
+        .end-call-btn { background:#ef4444; border:none; padding:0.5rem 1.5rem; border-radius:2rem; color:white; cursor:pointer; font-weight:600; }
+        .videos-container { flex:1; display:flex; flex-wrap:wrap; justify-content:center; align-items:center; gap:1rem; padding:1rem; }
+        video { width:45%; min-width:300px; background:#1e1e2e; border-radius:1rem; box-shadow:0 8px 20px rgba(0,0,0,0.5); object-fit:cover; transform:scaleX(-1); /* зеркало для локального видео */ }
+        .local-video { transform:scaleX(-1); }
+        .controls { padding:1rem; text-align:center; background:rgba(0,0,0,0.3); backdrop-filter:blur(10px); display:flex; justify-content:center; gap:1rem; }
+        .control-btn { background:rgba(255,255,255,0.2); border:none; width:50px; height:50px; border-radius:50%; color:white; cursor:pointer; font-size:1.2rem; transition:0.2s; }
+        .control-btn:hover { background:rgba(255,255,255,0.4); }
+        .muted { background:#ef4444; }
+        .status { padding:0.5rem; text-align:center; font-size:0.8rem; color:rgba(255,255,255,0.7); }
+        @media (max-width:700px){ video { width:90%; } }
+    </style>
+</head>
+<body>
+<div class="header">
+    <div><i class="fas fa-video"></i> NEXUS Видеозвонок</div>
+    <div class="room-info" id="roomInfo">Комната: ...</div>
+    <button class="end-call-btn" id="endCallBtn">Завершить</button>
+</div>
+<div class="videos-container">
+    <video id="localVideo" autoplay muted playsinline class="local-video"></video>
+    <video id="remoteVideo" autoplay playsinline></video>
+</div>
+<div class="controls">
+    <button class="control-btn" id="toggleMicBtn"><i class="fas fa-microphone"></i></button>
+    <button class="control-btn" id="toggleCamBtn"><i class="fas fa-video"></i></button>
+</div>
+<div class="status" id="status">Подключение...</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/js/all.min.js"></script>
+<script>
+    // Получаем параметры комнаты из URL
+    const urlParams = new URLSearchParams(window.location.search);
+    const room = urlParams.get('room');
+    const myName = urlParams.get('name') || 'Пользователь';
+    document.getElementById('roomInfo').innerText = `Комната: ${room}`;
+
+    if (!room) {
+        document.getElementById('status').innerText = 'Ошибка: комната не указана';
+        throw new Error('Room not specified');
+    }
+
+    // WebSocket подключение
+    // Замените localhost на реальный IP вашего сервера, если нужно
+    const wsUrl = `ws://${window.location.hostname}:8765`;
+    let ws = null;
+
+    let localStream = null;
+    let peerConnection = null;
+    let isCaller = false; // определяем по наличию уже участников в комнате
+
+    const configuration = {
+        iceServers: [
+            { urls: 'stun:stun.l.google.com:19302' },
+            { urls: 'stun:stun1.l.google.com:19302' }
+        ]
+    };
+
+    // DOM элементы
+    const localVideo = document.getElementById('localVideo');
+    const remoteVideo = document.getElementById('remoteVideo');
+    const toggleMicBtn = document.getElementById('toggleMicBtn');
+    const toggleCamBtn = document.getElementById('toggleCamBtn');
+    const endCallBtn = document.getElementById('endCallBtn');
+    const statusDiv = document.getElementById('status');
+
+    let micEnabled = true;
+    let camEnabled = true;
+
+    // Инициализация WebSocket
+    function connectWebSocket() {
+        ws = new WebSocket(wsUrl);
+        ws.onopen = () => {
+            statusDiv.innerText = 'Соединение установлено. Ожидание участников...';
+            // Отправляем join
+            ws.send(JSON.stringify({ type: 'join', room, name: myName }));
+        };
+        ws.onmessage = async (event) => {
+            const data = JSON.parse(event.data);
+            await handleSignaling(data);
+        };
+        ws.onerror = (err) => {
+            console.error('WebSocket error', err);
+            statusDiv.innerText = 'Ошибка соединения с сигнальным сервером';
+        };
+        ws.onclose = () => {
+            statusDiv.innerText = 'Соединение потеряно. Перезагрузите страницу.';
+        };
+    }
+
+    // Обработка сигнальных сообщений
+    async function handleSignaling(data) {
+        switch (data.type) {
+            case 'joined':
+                statusDiv.innerText = `Подключился к комнате. Участников: ${data.clientsCount}`;
+                if (data.clientsCount === 1) {
+                    // Мы первый в комнате -> будем вызывать
+                    isCaller = true;
+                    statusDiv.innerText = 'Вы первый в комнате. Ожидаем второго участника...';
+                } else {
+                    // Уже есть кто-то -> начинаем как отвечающий
+                    isCaller = false;
+                    statusDiv.innerText = 'Найден собеседник. Устанавливаем соединение...';
+                    if (!peerConnection) {
+                        await createPeerConnection();
+                        await createOffer(); // отвечающий не создаёт offer первым? обычно вызывающий создаёт offer.
+                        // Но если мы отвечающий, мы должны ждать offer от вызывающего.
+                        // Поэтому просто создаём peerConnection и ждём offer.
+                    }
+                }
+                break;
+            case 'ready':
+                // Собеседник готов, если мы вызывающий, то создаём offer
+                if (isCaller && !peerConnection) {
+                    await createPeerConnection();
+                    await createOffer();
+                }
+                break;
+            case 'offer':
+                if (!peerConnection) await createPeerConnection();
+                await peerConnection.setRemoteDescription(new RTCSessionDescription(data.offer));
+                const answer = await peerConnection.createAnswer();
+                await peerConnection.setLocalDescription(answer);
+                ws.send(JSON.stringify({ type: 'answer', answer, room }));
+                break;
+            case 'answer':
+                await peerConnection.setRemoteDescription(new RTCSessionDescription(data.answer));
+                break;
+            case 'ice-candidate':
+                if (peerConnection) {
+                    await peerConnection.addIceCandidate(new RTCIceCandidate(data.candidate));
+                }
+                break;
+            case 'leave':
+                statusDiv.innerText = 'Собеседник покинул звонок.';
+                if (peerConnection) peerConnection.close();
+                peerConnection = null;
+                if (localStream) {
+                    localStream.getTracks().forEach(track => track.stop());
+                    localStream = null;
+                }
+                localVideo.srcObject = null;
+                remoteVideo.srcObject = null;
+                break;
+            default:
+                console.log('Unknown message', data);
+        }
+    }
+
+    // Создание PeerConnection
+    async function createPeerConnection() {
+        peerConnection = new RTCPeerConnection(configuration);
+        peerConnection.onicecandidate = (event) => {
+            if (event.candidate) {
+                ws.send(JSON.stringify({ type: 'ice-candidate', candidate: event.candidate, room }));
+            }
+        };
+        peerConnection.ontrack = (event) => {
+            remoteVideo.srcObject = event.streams[0];
+        };
+        if (localStream) {
+            localStream.getTracks().forEach(track => {
+                peerConnection.addTrack(track, localStream);
+            });
+        }
+    }
+
+    // Создание offer (вызывающая сторона)
+    async function createOffer() {
+        const offer = await peerConnection.createOffer();
+        await peerConnection.setLocalDescription(offer);
+        ws.send(JSON.stringify({ type: 'offer', offer, room }));
+    }
+
+    // Получение доступа к медиа
+    async function getMedia() {
+        try {
+            localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+            localVideo.srcObject = localStream;
+            if (peerConnection) {
+                localStream.getTracks().forEach(track => {
+                    peerConnection.addTrack(track, localStream);
+                });
+            }
+            updateButtons();
+        } catch (err) {
+            console.error('Media error', err);
+            statusDiv.innerText = 'Ошибка доступа к камере/микрофону';
+        }
+    }
+
+    function updateButtons() {
+        if (localStream) {
+            const audioTracks = localStream.getAudioTracks();
+            const videoTracks = localStream.getVideoTracks();
+            micEnabled = audioTracks.length > 0 && audioTracks[0].enabled;
+            camEnabled = videoTracks.length > 0 && videoTracks[0].enabled;
+            toggleMicBtn.innerHTML = micEnabled ? '<i class="fas fa-microphone"></i>' : '<i class="fas fa-microphone-slash"></i>';
+            toggleCamBtn.innerHTML = camEnabled ? '<i class="fas fa-video"></i>' : '<i class="fas fa-video-slash"></i>';
+            if (!micEnabled) toggleMicBtn.classList.add('muted'); else toggleMicBtn.classList.remove('muted');
+            if (!camEnabled) toggleCamBtn.classList.add('muted'); else toggleCamBtn.classList.remove('muted');
+        }
+    }
+
+    function toggleMic() {
+        if (localStream) {
+            const audioTracks = localStream.getAudioTracks();
+            if (audioTracks.length) {
+                audioTracks[0].enabled = !audioTracks[0].enabled;
+                updateButtons();
+            }
+        }
+    }
+
+    function toggleCam() {
+        if (localStream) {
+            const videoTracks = localStream.getVideoTracks();
+            if (videoTracks.length) {
+                videoTracks[0].enabled = !videoTracks[0].enabled;
+                updateButtons();
+            }
+        }
+    }
+
+    function endCall() {
+        if (ws && ws.readyState === WebSocket.OPEN) {
+            ws.send(JSON.stringify({ type: 'leave', room }));
+        }
+        if (peerConnection) peerConnection.close();
+        if (localStream) localStream.getTracks().forEach(track => track.stop());
+        window.close(); // попытка закрыть окно
+    }
+
+    toggleMicBtn.addEventListener('click', toggleMic);
+    toggleCamBtn.addEventListener('click', toggleCam);
+    endCallBtn.addEventListener('click', endCall);
+
+    // Запуск
+    (async () => {
+        await getMedia();
+        connectWebSocket();
+    })();
+</script>
+</body>
+</html>
